@@ -1,3 +1,4 @@
+﻿// MatchPoint.Application/Resources/Commands/UpdateResourceCommand.cs
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,9 +13,7 @@ namespace MatchPoint.Application.Resources.Commands
     public sealed class UpdateResourceCommandHandler : IRequestHandler<UpdateResourceCommand, bool>
     {
         private readonly IResourceRepository _repo;
-
-        public UpdateResourceCommandHandler(IResourceRepository repo)
-            => _repo = repo;
+        public UpdateResourceCommandHandler(IResourceRepository repo) => _repo = repo;
 
         public async Task<bool> Handle(UpdateResourceCommand cmd, CancellationToken ct)
         {
@@ -32,7 +31,7 @@ namespace MatchPoint.Application.Resources.Commands
             existing.Location = string.IsNullOrWhiteSpace(r.Location) ? null : r.Location.Trim();
             existing.PricePerHourCents = r.PricePerHourCents;
             existing.IsActive = r.IsActive;
-            existing.UpdateDate = System.DateTime.UtcNow;
+            existing.UpdateDate = DateTime.UtcNow;
 
             return await _repo.UpdateAsync(existing, ct);
         }

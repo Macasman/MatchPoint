@@ -9,8 +9,8 @@ namespace MatchPoint.Infrastructure.Abstractions
 
         public SqlConnectionFactory(IConfiguration config)
         {
-            _connectionString = config.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            _connectionString = config.GetConnectionString("ConnectionStrings")
+                ?? throw new InvalidOperationException("Connection string 'ConnectionStrings' not found.");
         }
 
         public SqlConnection CreateConnection() => new SqlConnection(_connectionString);

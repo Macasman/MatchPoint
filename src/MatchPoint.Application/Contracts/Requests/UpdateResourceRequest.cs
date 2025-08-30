@@ -1,3 +1,4 @@
+﻿// MatchPoint.Application/Contracts/Requests/UpdateResourceRequest.cs
 namespace MatchPoint.Application.Contracts.Requests
 {
     public sealed record UpdateResourceRequest(

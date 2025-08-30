@@ -11,21 +11,20 @@ namespace MatchPoint.API.Controllers
 {
     [ApiController]
     [Route("resources")]
+    [Authorize]
     public class ResourcesController : ControllerBase
     {
         private readonly IMediator _mediator;
         public ResourcesController(IMediator mediator) => _mediator = mediator;
 
-        /// <summary>Create a new resource.</summary>
         [HttpPost]
-        [Authorize] // TODO: restrict to admin when roles are available
+        [Authorize]
         public async Task<IActionResult> Create([FromBody] CreateResourceRequest body, CancellationToken ct)
         {
             var id = await _mediator.Send(new CreateResourceCommand(body), ct);
             return CreatedAtAction(nameof(GetById), new { id }, new { id });
         }
 
-        /// <summary>Get a resource by id.</summary>
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetById([FromRoute] long id, CancellationToken ct)
         {
@@ -34,7 +33,6 @@ namespace MatchPoint.API.Controllers
             return Ok(dto);
         }
 
-        /// <summary>List resources optionally filtering by active flag.</summary>
         [HttpGet]
         public async Task<IActionResult> List([FromQuery] bool? active, CancellationToken ct)
         {
@@ -44,7 +42,6 @@ namespace MatchPoint.API.Controllers
 
         /// <summary>Update resource (name, location, price, active).</summary>
         [HttpPatch("{id:long}")]
-        [Authorize] // TODO: restrict to admin when roles are available
         public async Task<IActionResult> Update([FromRoute] long id, [FromBody] UpdateResourceRequest body, CancellationToken ct)
         {
             var ok = await _mediator.Send(new UpdateResourceCommand(id, body), ct);

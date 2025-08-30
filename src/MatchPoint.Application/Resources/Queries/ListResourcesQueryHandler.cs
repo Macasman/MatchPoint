@@ -1,3 +1,4 @@
+﻿// MatchPoint.Application/Resources/Queries/ListResourcesQuery.cs
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -13,14 +14,14 @@ namespace MatchPoint.Application.Resources.Queries
     public sealed class ListResourcesQueryHandler : IRequestHandler<ListResourcesQuery, IReadOnlyList<ResourceDto>>
     {
         private readonly IResourceRepository _repo;
-
-        public ListResourcesQueryHandler(IResourceRepository repo)
-            => _repo = repo;
+        public ListResourcesQueryHandler(IResourceRepository repo) => _repo = repo;
 
         public async Task<IReadOnlyList<ResourceDto>> Handle(ListResourcesQuery q, CancellationToken ct)
         {
             var items = await _repo.ListAsync(q.OnlyActive, ct);
-            return items.Select(e => new ResourceDto(e.ResourceId, e.Name, e.Location, e.PricePerHourCents, e.Currency, e.IsActive, e.CreationDate, e.UpdateDate)).ToList();
+            return items
+                .Select(e => new ResourceDto(e.ResourceId, e.Name, e.Location, e.PricePerHourCents, e.Currency, e.IsActive, e.CreationDate, e.UpdateDate))
+                .ToList();
         }
     }
 }

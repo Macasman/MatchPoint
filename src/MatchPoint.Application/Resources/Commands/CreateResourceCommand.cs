@@ -13,15 +13,12 @@ namespace MatchPoint.Application.Resources.Commands
     public sealed class CreateResourceCommandHandler : IRequestHandler<CreateResourceCommand, long>
     {
         private readonly IResourceRepository _repo;
-
-        public CreateResourceCommandHandler(IResourceRepository repo)
-            => _repo = repo;
+        public CreateResourceCommandHandler(IResourceRepository repo) => _repo = repo;
 
         public async Task<long> Handle(CreateResourceCommand cmd, CancellationToken ct)
         {
             var r = cmd.Request;
 
-            // Validations
             if (string.IsNullOrWhiteSpace(r.Name))
                 throw new ArgumentException("Name is required");
             if (r.PricePerHourCents < 0)
