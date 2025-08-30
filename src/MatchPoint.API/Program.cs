@@ -9,6 +9,9 @@ using MatchPoint.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using MatchPoint.Infrastructure.Abstractions;
+using System.Data.Entity.Infrastructure;
+
 
 var builder = WebApplication.CreateBuilder(args);
 var key = builder.Configuration["Jwt:Key"];
@@ -49,6 +52,9 @@ builder.Services.AddSingleton<IPaymentIntentRepository, PaymentIntentRepository>
 builder.Services.AddSingleton<IKycVerificationRepository, KycVerificationRepository>();
 builder.Services.AddSingleton<IAuditRepository, AuditRepository>();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(MatchPoint.Application.Resources.Commands.CreateResourceCommand).Assembly));
+builder.Services.AddSingleton<IResourceRepository, ResourceRepository>();
+builder.Services.AddSingleton<ISqlConnectionFactory, MatchPoint.Infrastructure.Abstractions.SqlConnectionFactory>(); // sua implementação concreta
 
 var app = builder.Build();
 

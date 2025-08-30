@@ -2,6 +2,7 @@
 using MatchPoint.Application.Interfaces;
 using MatchPoint.Domain.Entities;
 using MatchPoint.Infrastructure.Persistence;
+using static MatchPoint.Domain.Enums.Enums;
 
 namespace MatchPoint.Infrastructure.Repositories;
 
@@ -45,7 +46,9 @@ WHERE ReservationId = @Id;";
         using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Id", id);
 
+
         using var rd = await cmd.ExecuteReaderAsync(ct);
+        int iStatus = rd.GetOrdinal("Status");
         if (!await rd.ReadAsync(ct)) return null;
 
         return new Reservation
@@ -55,7 +58,7 @@ WHERE ReservationId = @Id;";
             ResourceId = rd.GetInt64(2),
             StartTime = rd.GetDateTime(3),
             EndTime = rd.GetDateTime(4),
-            Status = rd.GetByte(5),
+            Status = (ReservationStatus)rd.GetByte(iStatus),
             PriceCents = rd.GetInt32(6),
             Currency = rd.GetString(7),
             Notes = rd.IsDBNull(8) ? null : rd.GetString(8),

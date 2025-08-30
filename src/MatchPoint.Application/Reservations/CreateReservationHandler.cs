@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using MatchPoint.Domain.Entities;
 using MatchPoint.Application.Interfaces;
+using static MatchPoint.Domain.Enums.Enums;
 
 namespace MatchPoint.Application.Reservations;
 
@@ -25,7 +26,7 @@ public class CreateReservationHandler : IRequestHandler<CreateReservationCommand
             ResourceId = req.ResourceId,
             StartTime = req.StartTime,
             EndTime = req.EndTime,
-            Status = 1,
+            Status = ReservationStatus.Scheduled,
             PriceCents = req.PriceCents,
             Currency = req.Currency,
             Notes = req.Notes

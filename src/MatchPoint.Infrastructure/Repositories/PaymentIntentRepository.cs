@@ -1,7 +1,9 @@
 ﻿using System.Data.SqlClient;
+using System.Net.NetworkInformation;
 using MatchPoint.Application.Interfaces;
 using MatchPoint.Domain.Entities;
 using MatchPoint.Infrastructure.Persistence;
+using static MatchPoint.Domain.Enums.Enums;
 
 namespace MatchPoint.Infrastructure.Repositories;
 
@@ -44,13 +46,15 @@ WHERE PaymentIntentId = @Id;";
         using var rd = await cmd.ExecuteReaderAsync(ct);
         if (!await rd.ReadAsync(ct)) return null;
 
+        int iStatus = rd.GetOrdinal("Status");
+
         return new PaymentIntent
         {
             PaymentIntentId = rd.GetInt64(0),
             ReservationId = rd.GetInt64(1),
             AmountCents = rd.GetInt32(2),
             Currency = rd.GetString(3),
-            Status = rd.GetByte(4),
+            Status = (PaymentIntentStatus)rd.GetByte(iStatus),
             Provider = rd.IsDBNull(5) ? null : rd.GetString(5),
             ProviderRef = rd.IsDBNull(6) ? null : rd.GetString(6),
             CreationDate = rd.GetDateTime(7),
