@@ -14,4 +14,6 @@ public interface IReservationRepository
         long resourceId, DateTime? from, DateTime? to, byte? status, int page, int pageSize, CancellationToken ct);
 
     Task<bool> CancelAsync(long reservationId, CancellationToken ct);
+
+    Task<(bool Created, long Id)> CreateIfNoOverlapAsync(Reservation e, CancellationToken ct);
 }

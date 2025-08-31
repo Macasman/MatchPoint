@@ -2,18 +2,24 @@
 using System.Text;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 // Infra & App
-using MatchPoint.Infrastructure.Persistence;           // SqlDbContext (mesmo usado por Reservations)
+using MatchPoint.Infrastructure.Persistence;           // seu SqlDbContext
 using MatchPoint.Infrastructure.Messaging;
 using MatchPoint.Application.Interfaces;
 using MatchPoint.Infrastructure.Repositories;
+using MatchPoint.Infrastructure.Logging;
+using MatchPoint.Application.Logging;
+using MatchPoint.API.Filters;
+using MatchPoint.API.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ==== Mongo Audit Options ====
+var auditSection = builder.Configuration.GetSection("MongoAuditLog");
+var auditOptions = auditSection.Get<MongoAuditLogOptions>() ?? new MongoAuditLogOptions();
+builder.Services.AddSingleton(auditOptions);
 
 // ==== Auth (JWT) ====
 var key = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured");
@@ -40,7 +46,11 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // ==== MVC / Swagger ====
-builder.Services.AddControllers();
+// (uma única chamada já com o filtro de auditoria)
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<AuditLogActionFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -48,12 +58,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
-// ==== MediatR (registre TODOS os handlers do projeto Application de uma vez) ====
+// ==== Audit Log (Mongo) ====
+builder.Services.AddSingleton<IAuditLogService, MongoAuditLogService>();
+
+// ==== MediatR ====
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(Assembly.Load("MatchPoint.Application")));
 
-// ==== DB Provider (MESMO usado pelos Reservations) ====
-builder.Services.AddSingleton<SqlDbContext>(); // mantém seu padrão atual
+// ==== DB Provider ====
+builder.Services.AddSingleton<SqlDbContext>(); // conforme seu padrão atual
 
 // ==== Repositories ====
 builder.Services.AddSingleton<IResourceRepository, ResourceRepository>();
@@ -63,9 +76,6 @@ builder.Services.AddSingleton<IKycVerificationRepository, KycVerificationReposit
 builder.Services.AddSingleton<IAuditRepository, AuditRepository>();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 
-// 🔴 IMPORTANTE: NÃO registrar ISqlConnectionFactory aqui
-// builder.Services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();  // REMOVIDO
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -73,6 +83,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<CorrelationAndBufferingMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

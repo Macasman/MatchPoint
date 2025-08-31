@@ -222,4 +222,57 @@ public class ReservationRepository : IReservationRepository
         var rows = await cmd.ExecuteNonQueryAsync(ct);
         return rows > 0; // true = cancelou, false = não estava Agendada ou não existe
     }
+
+    public async Task<(bool Created, long Id)> CreateIfNoOverlapAsync(Reservation e, CancellationToken ct)
+    {
+        using var conn = _db.CreateConnection();
+        await conn.OpenAsync(ct);
+
+        using var tx = conn.BeginTransaction(IsolationLevel.Serializable);
+
+        // 1) Checagem de sobreposição com locks (UPDLOCK + HOLDLOCK) dentro de SERIALIZABLE
+        const string sqlCheck = @"
+            SELECT TOP(1) 1
+            FROM booking.Reservations WITH (UPDLOCK, HOLDLOCK)
+            WHERE ResourceId = @ResourceId
+              AND Status IN (1,2) -- Agendada/Concluida bloqueiam; ajuste se quiser só Agendada
+              AND StartTime < @EndTime
+              AND EndTime   > @StartTime;";
+
+        using (var check = new SqlCommand(sqlCheck, conn, tx))
+        {
+            check.Parameters.Add(new SqlParameter("@ResourceId", SqlDbType.BigInt) { Value = e.ResourceId });
+            check.Parameters.Add(new SqlParameter("@StartTime", SqlDbType.DateTime2) { Value = e.StartTime });
+            check.Parameters.Add(new SqlParameter("@EndTime", SqlDbType.DateTime2) { Value = e.EndTime });
+            var hasOverlap = (await check.ExecuteScalarAsync(ct)) != null;
+            if (hasOverlap)
+            {
+                tx.Rollback();
+                return (false, 0L);
+            }
+        }
+
+        // 2) Insert
+        const string sqlInsert = @"
+            INSERT INTO booking.Reservations
+            (UserId, ResourceId, StartTime, EndTime, Status, PriceCents, Currency, Notes)
+            OUTPUT INSERTED.ReservationId
+            VALUES (@UserId, @ResourceId, @StartTime, @EndTime, @Status, @PriceCents, @Currency, @Notes);";
+
+        using (var cmd = new SqlCommand(sqlInsert, conn, tx))
+        {
+            cmd.Parameters.Add(new SqlParameter("@UserId", SqlDbType.BigInt) { Value = e.UserId });
+            cmd.Parameters.Add(new SqlParameter("@ResourceId", SqlDbType.BigInt) { Value = e.ResourceId });
+            cmd.Parameters.Add(new SqlParameter("@StartTime", SqlDbType.DateTime2) { Value = e.StartTime });
+            cmd.Parameters.Add(new SqlParameter("@EndTime", SqlDbType.DateTime2) { Value = e.EndTime });
+            cmd.Parameters.Add(new SqlParameter("@Status", SqlDbType.TinyInt) { Value = (byte)e.Status });
+            cmd.Parameters.Add(new SqlParameter("@PriceCents", SqlDbType.Int) { Value = e.PriceCents });
+            cmd.Parameters.Add(new SqlParameter("@Currency", SqlDbType.Char, 3) { Value = e.Currency });
+            cmd.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, -1) { Value = (object?)e.Notes ?? DBNull.Value });
+
+            var id = Convert.ToInt64(await cmd.ExecuteScalarAsync(ct));
+            tx.Commit();
+            return (true, id);
+        }
+    }
 }

@@ -3,7 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using MatchPoint.Application.Interfaces;
-using static MatchPoint.Domain.Enums.Enums; // ReservationStatus
+using static MatchPoint.Domain.Enums.Enums;
+using MatchPoint.Application.Common; // ReservationStatus
 
 public sealed record CancelReservationCommand(long ReservationId) : IRequest<bool>;
 
@@ -11,12 +12,14 @@ public sealed class CancelReservationCommandHandler : IRequestHandler<CancelRese
 {
     private readonly IReservationRepository _repo;
     private readonly IPaymentIntentRepository _payments;
+    private readonly IAuditRepository _audit;
     public CancelReservationCommandHandler(IReservationRepository repo) => _repo = repo;
 
-    public CancelReservationCommandHandler(IReservationRepository repo, IPaymentIntentRepository payments)
+    public CancelReservationCommandHandler(IReservationRepository repo, IPaymentIntentRepository payments, IAuditRepository audit)
     {
         _repo = repo;
         _payments = payments; // 👈
+        _audit = audit;
     }
 
     public async Task<bool> Handle(CancelReservationCommand cmd, CancellationToken ct)
@@ -24,8 +27,17 @@ public sealed class CancelReservationCommandHandler : IRequestHandler<CancelRese
         var ok = await _repo.CancelAsync(cmd.ReservationId, ct);
         if (!ok) return false;
 
-        // 👇 tenta cancelar intents pendentes/autorizadas vinculadas
-        await _payments.CancelByReservationAsync(cmd.ReservationId, ct);
+        await _audit.LogAsync(
+            AuditHelper.Build("Reservation", cmd.ReservationId, "Canceled"),
+            ct);
+
+        var piCanceled = await _payments.CancelByReservationAsync(cmd.ReservationId, ct);
+        if (piCanceled)
+        {
+            await _audit.LogAsync(
+                AuditHelper.Build("PaymentIntent", 0, "CanceledByReservation", new { ReservationId = cmd.ReservationId }),
+                ct);
+        }
         return true;
     }
 }

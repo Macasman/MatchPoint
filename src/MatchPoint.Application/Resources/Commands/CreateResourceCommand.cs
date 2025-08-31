@@ -5,6 +5,7 @@ using MediatR;
 using MatchPoint.Application.Contracts.Requests;
 using MatchPoint.Application.Interfaces;
 using MatchPoint.Domain.Entities;
+using MatchPoint.Application.Common;
 
 namespace MatchPoint.Application.Resources.Commands
 {
@@ -13,7 +14,15 @@ namespace MatchPoint.Application.Resources.Commands
     public sealed class CreateResourceCommandHandler : IRequestHandler<CreateResourceCommand, long>
     {
         private readonly IResourceRepository _repo;
+        private readonly IAuditRepository _audit;
         public CreateResourceCommandHandler(IResourceRepository repo) => _repo = repo;
+
+        public CreateResourceCommandHandler(IResourceRepository repo, IAuditRepository audit /*...*/)
+        {
+            _repo = repo;
+            _audit = audit;
+            // ...
+        }
 
         public async Task<long> Handle(CreateResourceCommand cmd, CancellationToken ct)
         {
@@ -35,7 +44,20 @@ namespace MatchPoint.Application.Resources.Commands
                 IsActive = r.IsActive
             };
 
-            return await _repo.CreateAsync(entity, ct);
+            var id = await _repo.CreateAsync(entity, ct);
+
+            await _audit.LogAsync(
+                    AuditHelper.Build("Resource", id, "Created", new
+                    {
+                        entity.Name,
+                        entity.Location,
+                        entity.PricePerHourCents,
+                        entity.Currency,
+                        entity.IsActive
+                    }),
+                    ct);
+
+            return id;
         }
     }
 }

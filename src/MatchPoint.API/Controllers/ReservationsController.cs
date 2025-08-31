@@ -17,11 +17,11 @@ public class ReservationsController : ControllerBase
     public record CreateReservationDto(long UserId, long ResourceId, DateTime StartTime, DateTime EndTime, int PriceCents, string Currency = "BRL", string? Notes = null);
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateReservationDto dto, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateReservationCommand cmd, CancellationToken ct)
     {
-        var id = await _mediator.Send(new CreateReservationCommand(
-            dto.UserId, dto.ResourceId, dto.StartTime, dto.EndTime, dto.PriceCents, dto.Currency, dto.Notes
-        ), ct);
+        var id = await _mediator.Send(cmd, ct);
+        if (id == 0)
+            return Conflict(new { error = "Time window overlaps an existing reservation for this resource." });
 
         return CreatedAtAction(nameof(GetById), new { id }, new { id });
     }
