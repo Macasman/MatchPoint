@@ -11,15 +11,18 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
     private readonly IReservationRepository _repo;
     private readonly IResourceRepository _resources;
     private readonly IPaymentIntentRepository _payments;
+    private readonly IWebhookQueueWriter _webhookQueue; // 👈 novo
 
     public CreateReservationCommandHandler(
         IReservationRepository repo,
         IResourceRepository resources,
-        IPaymentIntentRepository payments)
+        IPaymentIntentRepository payments,
+        IWebhookQueueWriter webhookQueue)
     {
         _repo = repo;
         _resources = resources;
         _payments = payments;
+        _webhookQueue = webhookQueue;
     }
 
     public async Task<long> Handle(CreateReservationCommand cmd, CancellationToken ct)
@@ -47,15 +50,26 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         var (created, reservationId) = await _repo.CreateIfNoOverlapAsync(entity, ct);
         if (!created) return 0;
 
-        // Garante UM PI aberto por reserva: capturar exceção de unique index (ver DDL abaixo)
+        long paymentIntentId = 0;
         try
         {
-            _ = await _payments.CreateForReservationAsync(
-                reservationId, cmd.PriceCents, entity.Currency, "Simulado", ct);
+            paymentIntentId = await _payments.CreateForReservationAsync(
+                reservationId, cmd.PriceCents, entity.Currency, "Simulado", ct) ?? 0L;
         }
         catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
         {
-            // Já existe PI aberto; tudo bem seguir
+            // PI já existe -> segue fluxo; poderíamos buscar o existente se precisar do id
+        }
+
+        // 👇 Enfileira o "capture" simulado (worker vai postar no webhook da API)
+        if (paymentIntentId > 0)
+        {
+            await _webhookQueue.EnqueuePaymentEventAsync(
+                paymentIntentId,
+                @event: "payment.captured",
+                providerRef: "sim-auto",
+                scheduleUtc: DateTime.UtcNow.AddSeconds(2),
+                ct: ct);
         }
 
         return reservationId;

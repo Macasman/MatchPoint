@@ -75,6 +75,7 @@ builder.Services.AddSingleton<IPaymentIntentRepository, PaymentIntentRepository>
 builder.Services.AddSingleton<IKycVerificationRepository, KycVerificationRepository>();
 builder.Services.AddSingleton<IAuditRepository, AuditRepository>();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IWebhookQueueWriter, WebhookQueueSqlWriter>();
 
 var app = builder.Build();
 
