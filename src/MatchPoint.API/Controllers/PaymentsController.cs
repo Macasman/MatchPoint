@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using MatchPoint.Application.Payments;
+using MatchPoint.Application.Interfaces;
 
 namespace MatchPoint.API.Controllers;
 
@@ -32,5 +33,12 @@ public class PaymentsController : ControllerBase
     {
         var ok = await _mediator.Send(new CapturePaymentIntentCommand(id), ct);
         return ok ? Ok(new { captured = true, id }) : BadRequest(new { captured = false, id });
+    }
+
+    [HttpPost("intents/{id:long}/enqueue-capture")]
+    public async Task<IActionResult> EnqueueCapture([FromRoute] long id, [FromServices] IWebhookQueueWriter queue, CancellationToken ct)
+    {
+        var jobId = await queue.EnqueuePaymentEventAsync(id, "payment.captured", "manual", DateTime.UtcNow, ct);
+        return Accepted(new { jobId, paymentIntentId = id, enqueued = true });
     }
 }
