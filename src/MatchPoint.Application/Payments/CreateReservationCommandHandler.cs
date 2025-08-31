@@ -1,25 +1,21 @@
-﻿using MediatR;
+﻿// MatchPoint.Application/Reservations/Commands/CreateReservationCommand.cs
 using MatchPoint.Application.Interfaces;
+using MatchPoint.Application.Reservations;
 using MatchPoint.Domain.Entities;
+using MediatR;
 using static MatchPoint.Domain.Enums.Enums;
-using System.Data.SqlClient;
-
-namespace MatchPoint.Application.Reservations;
-
-public class CreateReservationCommandHandler : IRequestHandler<CreateReservationCommand, long>
+// ...
+public sealed class CreateReservationCommandHandler : IRequestHandler<CreateReservationCommand, long>
 {
     private readonly IReservationRepository _repo;
     private readonly IResourceRepository _resources;
-    private readonly IPaymentIntentRepository _payments;
+    private readonly IPaymentIntentRepository _payments; // 👈
 
-    public CreateReservationCommandHandler(
-        IReservationRepository repo,
-        IResourceRepository resources,
-        IPaymentIntentRepository payments)
+    public CreateReservationCommandHandler(IReservationRepository repo, IResourceRepository resources, IPaymentIntentRepository payments)
     {
         _repo = repo;
         _resources = resources;
-        _payments = payments;
+        _payments = payments; // 👈
     }
 
     public async Task<long> Handle(CreateReservationCommand cmd, CancellationToken ct)
@@ -45,18 +41,10 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         };
 
         var (created, reservationId) = await _repo.CreateIfNoOverlapAsync(entity, ct);
-        if (!created) return 0;
+        if (!created) return 0; // sinaliza conflito para a Controller
 
-        // Garante UM PI aberto por reserva: capturar exceção de unique index (ver DDL abaixo)
-        try
-        {
-            _ = await _payments.CreateForReservationAsync(
-                reservationId, cmd.PriceCents, entity.Currency, "Simulado", ct);
-        }
-        catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
-        {
-            // Já existe PI aberto; tudo bem seguir
-        }
+        // cria PaymentIntent vinculado
+        _ = await _payments.CreateForReservationAsync(reservationId, cmd.PriceCents, entity.Currency, "Simulado", ct);
 
         return reservationId;
     }

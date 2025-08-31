@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using MatchPoint.Application.Interfaces;
 using MatchPoint.Domain.Entities;
+using static MatchPoint.Domain.Enums.Enums;
 
 namespace MatchPoint.Application.Payments;
 
@@ -17,7 +18,7 @@ public class CreatePaymentIntentHandler : IRequestHandler<CreatePaymentIntentCom
             ReservationId = req.ReservationId,
             AmountCents = req.AmountCents,
             Currency = string.IsNullOrWhiteSpace(req.Currency) ? "BRL" : req.Currency,
-            Status = 1,
+            Status = PaymentIntentStatus.Pending,
             Provider = req.Provider
         };
         return await _repo.CreateAsync(pi, ct);

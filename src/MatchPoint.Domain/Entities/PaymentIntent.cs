@@ -1,4 +1,6 @@
-﻿namespace MatchPoint.Domain.Entities;
+﻿using static MatchPoint.Domain.Enums.Enums;
+
+namespace MatchPoint.Domain.Entities;
 
 public class PaymentIntent
 {
@@ -6,7 +8,7 @@ public class PaymentIntent
     public long ReservationId { get; set; }
     public int AmountCents { get; set; }
     public string Currency { get; set; } = "BRL";
-    public byte Status { get; set; } = 1; // 1=Pending, 2=Authorized, 3=Captured, 4=Failed, 5=Canceled
+    public PaymentIntentStatus Status { get; set; } 
     public string? Provider { get; set; }
     public string? ProviderRef { get; set; }
     public DateTime CreationDate { get; set; }

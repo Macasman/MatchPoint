@@ -1,4 +1,6 @@
-﻿namespace MatchPoint.Domain.Entities;
+﻿using static MatchPoint.Domain.Enums.Enums;
+
+namespace MatchPoint.Domain.Entities;
 
 public class Reservation
 {
@@ -7,7 +9,7 @@ public class Reservation
     public long ResourceId { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
-    public byte Status { get; set; } = 1;     // 1=Agendada
+    public ReservationStatus Status { get; set; }     // 1=Agendada
     public int PriceCents { get; set; }
     public string Currency { get; set; } = "BRL";
     public string? Notes { get; set; }
